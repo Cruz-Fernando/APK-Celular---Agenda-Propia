@@ -1,36 +1,46 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, FlatList, StyleSheet } from 'react-native';
-import db from '../../database/db'; // Ajusta esta ruta según la ubicación de tu archivo
+import db from '../../database/db'; 
+
+// 1. Definimos la forma exacta que tiene un "Apunte" en nuestra base de datos
+interface Apunte {
+  id: number;
+  titulo: string;
+  contenido: string;
+  fecha_creacion: string;
+  etiquetas?: string; 
+}
 
 export default function ApuntesScreen() {
-  const [apuntes, setApuntes] = useState([]);
+  // 2. Estado tipado para los apuntes
+  const [apuntes, setApuntes] = useState<Apunte[]>([]);
   const [titulo, setTitulo] = useState('');
   const [contenido, setContenido] = useState('');
 
-  // Función para leer los apuntes de la base de datos
+  // 3. Función para leer los apuntes de la base de datos
   const cargarApuntes = () => {
     try {
-      const resultados = db.getAllSync('SELECT * FROM apuntes ORDER BY id DESC');
+      const resultados = db.getAllSync('SELECT * FROM apuntes ORDER BY id DESC') as Apunte[];
       setApuntes(resultados);
     } catch (error) {
       console.error('Error al cargar apuntes:', error);
     }
   };
 
-  // Cargar datos al abrir la pantalla
+  // 4. Cargar datos al abrir la pantalla
   useEffect(() => {
     cargarApuntes();
   }, []);
 
-  // Función para insertar un nuevo apunte
+  // 5. Función para insertar un nuevo apunte
   const guardarApunte = () => {
     if (!titulo.trim()) return; // Evita guardar si no hay título
 
     try {
       db.runSync('INSERT INTO apuntes (titulo, contenido) VALUES (?, ?)', [titulo, contenido]);
-      setTitulo('');
+      setTitulo(''); // Limpiamos los campos
       setContenido('');
-      cargarApuntes(); // Refrescar la lista
+      cargarApuntes(); // Refrescamos la lista para ver el nuevo apunte
     } catch (error) {
       console.error('Error al guardar el apunte:', error);
     }

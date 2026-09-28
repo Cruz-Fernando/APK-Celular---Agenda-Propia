@@ -1,22 +1,31 @@
+import { useEffect, useState } from 'react';
+import { initDatabase } from '../../database/db';
 import { DarkTheme, DefaultTheme, ThemeProvider } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
-import { useEffect } from 'react';
 import { useColorScheme } from 'react-native';
-import { initDatabase } from '../../database/db';
 
 import { AnimatedSplashOverlay } from '@/components/animated-icon';
 import AppTabs from '@/components/app-tabs';
 
-// Mantenemos esto fuera del componente para que se ejecute de inmediato
 SplashScreen.preventAutoHideAsync();
 
 export default function TabLayout() {
   const colorScheme = useColorScheme();
+  
+  // 1. Creamos una variable para saber si la BD ya está lista
+  const [dbLista, setDbLista] = useState(false);
 
-  // Integramos el useEffect al inicio del componente
   useEffect(() => {
+    // 2. Inicializamos las tablas
     initDatabase();
+    // 3. Le decimos a React que ya puede continuar
+    setDbLista(true);
   }, []);
+
+  // 4. Bloqueamos la carga de las pantallas hasta que dbLista sea true
+  if (!dbLista) {
+    return null; 
+  }
 
   return (
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
