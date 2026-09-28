@@ -1,25 +1,14 @@
 // app/_layout.tsx
-import { useEffect, useState } from 'react';
-import { initDatabase } from '../../database/db'; // Verifica que esta ruta sea correcta
-import { Slot } from 'expo-router'; // Slot es un marcador de posición para las rutas anidadas
+import { Slot } from 'expo-router';
+import { initDatabase } from '../../database/db';
+
+// Al llamar a la función aquí afuera, SQLite crea y actualiza 
+// las tablas de forma síncrona una fracción de segundo ANTES 
+// de que React intente renderizar cualquier pantalla.
+initDatabase();
 
 export default function RootLayout() {
-  // Estado para saber si la base de datos ya está lista
-  const [dbLista, setDbLista] = useState(false);
-
-  useEffect(() => {
-    // 1. Inicializamos las tablas de SQLite
-    initDatabase();
-    // 2. Le decimos a React que ya puede continuar dibujando la pantalla
-    setDbLista(true);
-  }, []);
-
-  // Mientras la base de datos se crea, no mostramos nada (evita errores de pantalla roja)
-  if (!dbLista) {
-    return null; 
-  }
-
-  // Si la DB está lista, <Slot /> inyecta las rutas hijas 
-  // (en este caso, automáticamente cargará tu carpeta (tabs))
+  // Al devolver <Slot /> de inmediato, Expo Router puede 
+  // enrutar la aplicación sin lanzar advertencias de "unmounted component".
   return <Slot />;
 }
