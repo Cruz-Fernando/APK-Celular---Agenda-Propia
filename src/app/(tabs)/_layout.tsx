@@ -7,9 +7,14 @@ import { Tabs } from 'expo-router';
 // Importamos Ionicons, un paquete de iconos nativos que ya viene preinstalado en Expo.
 import { Ionicons } from '@expo/vector-icons';
 
+// Paleta activa (clara u oscura) para que la barra inferior también cambie de tema.
+import { useTheme } from '@/hooks/use-theme';
+
 // Exportamos la función principal TabLayout. Esta función actúa como un "molde" (layout) 
 // que envolverá a todas las pantallas que declaremos aquí adentro.
 export default function TabLayout() {
+  const theme = useTheme();
+
   return (
     // <Tabs> renderiza la barra de navegación inferior en la pantalla de tu celular.
     // 'screenOptions' aplica reglas de diseño globales a todas las pestañas por igual.
@@ -19,10 +24,16 @@ export default function TabLayout() {
         tabBarActiveTintColor: '#007BFF',
 
         // tabBarInactiveTintColor: El color cuando la pestaña NO está seleccionada.
-        tabBarInactiveTintColor: 'gray',
+        tabBarInactiveTintColor: theme.textSecondary,
 
-        // tabBarStyle: Controla el diseño físico de la barra. Aquí le damos 60px de altura.
-        tabBarStyle: { paddingBottom: 5, height: 60 },
+        // tabBarStyle: Controla el diseño físico de la barra. Aquí le damos 60px de altura
+        // y colores que dependen del modo claro/oscuro.
+        tabBarStyle: {
+          paddingBottom: 5,
+          height: 60,
+          backgroundColor: theme.backgroundElement,
+          borderTopColor: theme.backgroundSelected,
+        },
 
         // headerShown: Oculta el título feo que pone Android por defecto en la parte superior,
         // permitiendo que cada una de tus pantallas (como Apuntes o Agenda) dibuje su propio diseño.
