@@ -12,11 +12,7 @@ import {
   setAudioModeAsync,
 } from 'expo-audio';
 import { File, Paths } from 'expo-file-system';
-import db from '../../../database/db';
-
-import { useTheme } from '@/hooks/use-theme';
-import Reveal from '@/components/Reveal';
-import PressableScale from '@/components/PressableScale';
+import db from '../../../database/db'; 
 
 interface Apunte {
   id: number;
@@ -260,14 +256,23 @@ export default function ApuntesScreen() {
             </PressableScale>
           </Reveal>
         }
-        renderItem={({ item, index }) => (
-          <Reveal delay={Math.min(index, 6) * 50}>
-            <PressableScale style={styles.tarjetaApunte} onPress={() => abrirDetalles(item)} scaleTo={0.98}>
-              <View style={styles.cabeceraTarjeta}>
-                <Text style={styles.tituloApunte}>{item.titulo}</Text>
-                <TouchableOpacity onPress={() => eliminarApunte(item.id, item.audio_uri)}>
-                  <Ionicons name="trash-outline" size={22} color="#FF7675" />
-                </TouchableOpacity>
+        renderItem={({ item }) => (
+          <TouchableOpacity style={styles.tarjetaApunte} onPress={() => abrirDetalles(item)} activeOpacity={0.7}>
+            <View style={styles.cabeceraTarjeta}>
+              <Text style={styles.tituloApunte}>{item.titulo}</Text>
+              <TouchableOpacity onPress={() => eliminarApunte(item.id, item.audio_uri)}>
+                <Ionicons name="trash-outline" size={22} color="#FF7675" />
+              </TouchableOpacity>
+            </View>
+            <Text style={styles.contenidoApunte} numberOfLines={2}>{item.contenido}</Text>
+            
+            <View style={styles.pieTarjeta}>
+              <View style={{flexDirection: 'row', gap: 5}}>
+                {item.asignatura && item.asignatura !== "Ninguna" && (
+                  <View style={styles.pillAsignatura}><Text style={styles.textoPill}>{item.asignatura}</Text></View>
+                )}
+                {item.audio_uri && <Ionicons name="mic" size={16} color="#0984E3" style={{marginTop: 3}} />}
+                {item.archivo_uri && <Ionicons name="document-text" size={16} color="#0984E3" style={{marginTop: 3}} />}
               </View>
               <Text style={styles.contenidoApunte} numberOfLines={2}>{item.contenido}</Text>
 
