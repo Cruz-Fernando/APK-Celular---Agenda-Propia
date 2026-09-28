@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, TouchableOpacity, FlatList, StyleSheet, KeyboardAvoidingView, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useEffect, useState } from 'react';
+import { FlatList, KeyboardAvoidingView, Platform, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import db from '../../../database/db';
 
 interface Habito {
@@ -42,7 +42,7 @@ export default function HabitosScreen() {
     if (!nuevoHabito.trim()) return;
     try {
       db.runSync('INSERT INTO habitos (nombre, frecuencia, racha_actual, mejor_racha) VALUES (?, ?, ?, ?)', [nuevoHabito, 'Diaria', 0, 0]);
-      setNuevoHabito(''); 
+      setNuevoHabito('');
       cargarHabitos();
     } catch (error) { console.error('Error:', error); }
   };
@@ -70,31 +70,30 @@ export default function HabitosScreen() {
     cargarHabitos();
   };
 
-  const Cabecera = () => (
-    <View style={styles.formContainer}>
-      <Text style={styles.header}>Mis Hábitos</Text>
-      <View style={styles.inputRow}>
-        <TextInput
-          style={styles.input}
-          placeholder="Nuevo hábito..."
-          placeholderTextColor="#B2BEC3"
-          value={nuevoHabito}
-          onChangeText={setNuevoHabito}
-        />
-        <TouchableOpacity style={styles.botonCrear} onPress={agregarHabito}>
-          <Ionicons name="add" size={24} color="#FFF" />
-        </TouchableOpacity>
-      </View>
-    </View>
-  );
-
   return (
     <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.container}>
       <FlatList
         data={habitos}
         keyExtractor={(item) => item.id.toString()}
-        ListHeaderComponent={Cabecera}
         showsVerticalScrollIndicator={false}
+        // SOLUCIÓN AL BUG DEL TECLADO:
+        ListHeaderComponent={
+          <View style={styles.formContainer}>
+            <Text style={styles.header}>Mis Hábitos</Text>
+            <View style={styles.inputRow}>
+              <TextInput
+                style={styles.input}
+                placeholder="Nuevo hábito..."
+                placeholderTextColor="#B2BEC3"
+                value={nuevoHabito}
+                onChangeText={setNuevoHabito}
+              />
+              <TouchableOpacity style={styles.botonCrear} onPress={agregarHabito}>
+                <Ionicons name="add" size={24} color="#FFF" />
+              </TouchableOpacity>
+            </View>
+          </View>
+        }
         renderItem={({ item }) => (
           <View style={[styles.tarjetaHabito, item.completadoHoy && styles.habitoCompletadoOpacity]}>
             <View style={styles.infoHabito}>
@@ -104,7 +103,7 @@ export default function HabitosScreen() {
                   <Ionicons name="close" size={20} color="#B2BEC3" />
                 </TouchableOpacity>
               </View>
-              
+
               <View style={styles.rachasContainer}>
                 <View style={styles.pillRacha}>
                   <Ionicons name="flame" size={14} color="#E17055" style={{ marginRight: 4 }} />
@@ -117,8 +116,8 @@ export default function HabitosScreen() {
               </View>
             </View>
 
-            <TouchableOpacity 
-              style={[styles.botonCheck, item.completadoHoy && styles.botonCheckActivo]} 
+            <TouchableOpacity
+              style={[styles.botonCheck, item.completadoHoy && styles.botonCheckActivo]}
               onPress={() => alternarHabitoHoy(item)}
             >
               <Ionicons name="checkmark" size={32} color={item.completadoHoy ? "#FFF" : "#DFE6E9"} />
@@ -134,24 +133,24 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#F4F7FC', paddingHorizontal: 20 },
   formContainer: { marginTop: 40, marginBottom: 20 },
   header: { fontSize: 32, fontWeight: '900', color: '#2D3436', marginBottom: 20 },
-  
+
   inputRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   input: { flex: 1, backgroundColor: '#FFFFFF', padding: 16, borderRadius: 16, fontSize: 16, color: '#2D3436', elevation: 2, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 8 },
   botonCrear: { backgroundColor: '#00B894', width: 54, height: 54, borderRadius: 16, alignItems: 'center', justifyContent: 'center', elevation: 3, shadowColor: '#00B894', shadowOpacity: 0.3, shadowRadius: 8 },
-  
+
   tarjetaHabito: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFFFFF', padding: 20, borderRadius: 20, marginBottom: 15, elevation: 2, shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 10, shadowOffset: { width: 0, height: 4 } },
   habitoCompletadoOpacity: { opacity: 0.8 },
-  
+
   infoHabito: { flex: 1, marginRight: 15 },
   tituloRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 },
   tituloHabito: { fontSize: 18, fontWeight: 'bold', color: '#2D3436', flex: 1 },
-  
+
   rachasContainer: { flexDirection: 'row', gap: 10 },
   pillRacha: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFEAA7', paddingVertical: 4, paddingHorizontal: 10, borderRadius: 20 },
   textoRacha: { fontSize: 13, fontWeight: 'bold', color: '#D35400' },
   pillMejorRacha: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFF3E0', paddingVertical: 4, paddingHorizontal: 10, borderRadius: 20 },
   textoMejorRacha: { fontSize: 13, fontWeight: 'bold', color: '#E67E22' },
-  
+
   botonCheck: { width: 60, height: 60, borderRadius: 30, backgroundColor: '#F8F9FA', borderWidth: 2, borderColor: '#DFE6E9', alignItems: 'center', justifyContent: 'center' },
   botonCheckActivo: { backgroundColor: '#00B894', borderColor: '#00B894', elevation: 4, shadowColor: '#00B894', shadowOpacity: 0.4, shadowRadius: 8 }
 });

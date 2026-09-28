@@ -78,6 +78,16 @@ export default function TabLayout() {
           ),
         }}
       />
+      {/* --- PESTAÑA 5: CUADERNO --- */}
+      <Tabs.Screen
+        name="cuaderno"
+        options={{
+          title: 'Cuaderno',
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="book-outline" size={size} color={color} />
+          ),
+        }}
+      />
     </Tabs>
   );
 }

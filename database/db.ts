@@ -76,6 +76,9 @@ export const initDatabase = () => {
     try { 
       db.execSync('ALTER TABLE agenda ADD COLUMN archivo_nombre TEXT;'); 
     } catch (e) { /* Guarda el nombre visible del archivo (ej. "Tesis.pdf") */ }
+    
+    // NUEVA LÍNEA PARA APUNTES:
+    try { db.execSync('ALTER TABLE apuntes ADD COLUMN asignatura TEXT;'); } catch (e) {}
 
     // Mensaje de éxito en la terminal
     console.log('✅ Base de datos y tablas inicializadas (y actualizadas) correctamente.');

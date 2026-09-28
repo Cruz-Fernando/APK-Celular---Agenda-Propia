@@ -29,7 +29,7 @@ export default function AgendaScreen() {
   const [mostrarCalendario, setMostrarCalendario] = useState(false);
   const [archivoAdjunto, setArchivoAdjunto] = useState<{ uri: string; nombre: string } | null>(null);
 
-  const opcionesAsignaturas = ["Ninguna", "Ingeniería de Software", "Sistemas Operativos", "Economía", "Ética", "Otra"];
+  const opcionesAsignaturas = ["Ninguna", "API", "INGENERIA DE SOFTWARE", "SISTEMAS OPERATIVOS", "SOLUCIONES TECNOLOGICAS CONT", "ECONOMIA", "ETICA", "INFORMATICA JURIDICA"];
 
   const adjuntarImagen = async () => {
     let result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, quality: 0.8 });
@@ -80,61 +80,60 @@ export default function AgendaScreen() {
     cargarTareas();
   };
 
-  const FormularioCabecera = () => (
-    <View style={styles.formContainer}>
-      <Text style={styles.header}>Mi Agenda</Text>
-      
-      <TextInput style={styles.input} placeholder="¿Qué necesitas hacer? *" placeholderTextColor="#B2BEC3" value={titulo} onChangeText={setTitulo} />
-      <TextInput style={[styles.input, styles.textArea]} placeholder="Añade detalles..." placeholderTextColor="#B2BEC3" value={descripcion} onChangeText={setDescripcion} multiline />
-      
-      <View style={styles.pickerContainer}>
-        <Text style={styles.labelPicker}>Asignatura</Text>
-        <Picker selectedValue={asignatura} onValueChange={setAsignatura} style={styles.picker}>
-          {opcionesAsignaturas.map((opc, i) => <Picker.Item key={i} label={opc} value={opc} color="#2D3436" />)}
-        </Picker>
-      </View>
-
-      <TextInput style={styles.input} placeholder="Etiqueta (Ej: Proyecto)" placeholderTextColor="#B2BEC3" value={etiquetaPersonal} onChangeText={setEtiquetaPersonal} />
-
-      <View style={styles.accionesRow}>
-        <TouchableOpacity style={styles.botonFecha} onPress={() => setMostrarCalendario(true)}>
-          <Ionicons name="calendar" size={18} color="#0984E3" />
-          <Text style={styles.textoBotonFecha}>{formatearFecha(fechaLimite)}</Text>
-        </TouchableOpacity>
-
-        <View style={styles.adjuntosRow}>
-          <TouchableOpacity style={styles.botonIcono} onPress={adjuntarImagen}>
-            <Ionicons name="image" size={22} color="#636E72" />
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.botonIcono} onPress={adjuntarDocumento}>
-            <Ionicons name="document-attach" size={22} color="#636E72" />
-          </TouchableOpacity>
-        </View>
-      </View>
-
-      {archivoAdjunto && (
-        <View style={styles.archivoBadge}>
-          <Ionicons name="attach" size={16} color="#2D3436" />
-          <Text style={styles.archivoNombre} numberOfLines={1}>{archivoAdjunto.nombre}</Text>
-          <TouchableOpacity onPress={removerAdjunto}><Ionicons name="close-circle" size={20} color="#FF7675" /></TouchableOpacity>
-        </View>
-      )}
-
-      {mostrarCalendario && <DateTimePicker value={fechaLimite} mode="date" display="default" onChange={alCambiarFecha} />}
-
-      <TouchableOpacity style={styles.botonGuardar} onPress={agregarTarea}>
-        <Text style={styles.textoBotonGuardar}>Añadir Tarea</Text>
-      </TouchableOpacity>
-    </View>
-  );
-
   return (
     <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.container}>
       <FlatList
         data={tareas}
         keyExtractor={(item) => item.id.toString()}
-        ListHeaderComponent={FormularioCabecera}
         showsVerticalScrollIndicator={false}
+        // SOLUCIÓN AL BUG DEL TECLADO: Formulario inyectado directamente en el JSX
+        ListHeaderComponent={
+          <View style={styles.formContainer}>
+            <Text style={styles.header}>Mi Agenda</Text>
+            
+            <TextInput style={styles.input} placeholder="¿Qué necesitas hacer? *" placeholderTextColor="#B2BEC3" value={titulo} onChangeText={setTitulo} />
+            <TextInput style={[styles.input, styles.textArea]} placeholder="Añade detalles..." placeholderTextColor="#B2BEC3" value={descripcion} onChangeText={setDescripcion} multiline />
+            
+            <View style={styles.pickerContainer}>
+              <Text style={styles.labelPicker}>Asignatura</Text>
+              <Picker selectedValue={asignatura} onValueChange={setAsignatura} style={styles.picker}>
+                {opcionesAsignaturas.map((opc, i) => <Picker.Item key={i} label={opc} value={opc} color="#2D3436" />)}
+              </Picker>
+            </View>
+
+            <TextInput style={styles.input} placeholder="Etiqueta (Ej: Proyecto)" placeholderTextColor="#B2BEC3" value={etiquetaPersonal} onChangeText={setEtiquetaPersonal} />
+
+            <View style={styles.accionesRow}>
+              <TouchableOpacity style={styles.botonFecha} onPress={() => setMostrarCalendario(true)}>
+                <Ionicons name="calendar" size={18} color="#0984E3" />
+                <Text style={styles.textoBotonFecha}>{formatearFecha(fechaLimite)}</Text>
+              </TouchableOpacity>
+
+              <View style={styles.adjuntosRow}>
+                <TouchableOpacity style={styles.botonIcono} onPress={adjuntarImagen}>
+                  <Ionicons name="image" size={22} color="#636E72" />
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.botonIcono} onPress={adjuntarDocumento}>
+                  <Ionicons name="document-attach" size={22} color="#636E72" />
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            {archivoAdjunto && (
+              <View style={styles.archivoBadge}>
+                <Ionicons name="attach" size={16} color="#2D3436" />
+                <Text style={styles.archivoNombre} numberOfLines={1}>{archivoAdjunto.nombre}</Text>
+                <TouchableOpacity onPress={removerAdjunto}><Ionicons name="close-circle" size={20} color="#FF7675" /></TouchableOpacity>
+              </View>
+            )}
+
+            {mostrarCalendario && <DateTimePicker value={fechaLimite} mode="date" display="default" onChange={alCambiarFecha} />}
+
+            <TouchableOpacity style={styles.botonGuardar} onPress={agregarTarea}>
+              <Text style={styles.textoBotonGuardar}>Añadir Tarea</Text>
+            </TouchableOpacity>
+          </View>
+        }
         renderItem={({ item }) => (
           <View style={[styles.tarjetaTarea, item.estado === 'completada' && styles.tareaCompletada]}>
             <TouchableOpacity onPress={() => cambiarEstado(item.id, item.estado)} style={styles.checkbox}>
