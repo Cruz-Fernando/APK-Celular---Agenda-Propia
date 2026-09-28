@@ -4,7 +4,13 @@ import { Ionicons } from '@expo/vector-icons';
 import { Picker } from '@react-native-picker/picker'; 
 import * as DocumentPicker from 'expo-document-picker';
 import * as Clipboard from 'expo-clipboard';
-import { Audio } from 'expo-av';
+import {
+  useAudioRecorder,
+  useAudioPlayer,
+  RecordingPresets,
+  requestRecordingPermissionsAsync,
+  setAudioModeAsync,
+} from 'expo-audio';
 import db from '../../../database/db'; 
 
 interface Apunte {
@@ -29,9 +35,10 @@ export default function ApuntesScreen() {
   const [archivoAdjunto, setArchivoAdjunto] = useState<{ uri: string; nombre: string } | null>(null);
   const [audioUri, setAudioUri] = useState<string | null>(null);
   
-  // Estados para Audio
-  const [grabando, setGrabando] = useState<Audio.Recording | undefined>();
-  const [sonido, setSonido] = useState<Audio.Sound | undefined>();
+  // Estados para Audio (expo-audio)
+  const [grabando, setGrabando] = useState(false);
+  const recorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
+  const player = useAudioPlayer(null);
 
   // Estados del Modal (Ver Detalles / Editar)
   const [modalVisible, setModalVisible] = useState(false);
@@ -49,11 +56,6 @@ export default function ApuntesScreen() {
 
   useEffect(() => { cargarApuntes(); }, []);
 
-  // Limpieza del reproductor de audio al desmontar
-  useEffect(() => {
-    return sonido ? () => { sonido.unloadAsync(); } : undefined;
-  }, [sonido]);
-
   // --- FUNCIONES DE HERRAMIENTAS ---
 
   const pegarDesdePortapapeles = async () => {
@@ -70,26 +72,35 @@ export default function ApuntesScreen() {
 
   const iniciarGrabacion = async () => {
     try {
-      await Audio.requestPermissionsAsync();
-      await Audio.setAudioModeAsync({ allowsRecordingIOS: true, playsInSilentModeIOS: true });
-      const { recording } = await Audio.Recording.createAsync(Audio.RecordingOptionsPresets.HIGH_QUALITY);
-      setGrabando(recording);
+      const { granted } = await requestRecordingPermissionsAsync();
+      if (!granted) {
+        console.warn('Permiso de micrófono denegado');
+        return;
+      }
+      await setAudioModeAsync({ allowsRecording: true, playsInSilentMode: true });
+      await recorder.prepareToRecordAsync();
+      recorder.record();
+      setGrabando(true);
     } catch (err) { console.error('Error al grabar', err); }
   };
 
   const detenerGrabacion = async () => {
     if (!grabando) return;
-    setGrabando(undefined);
-    await grabando.stopAndUnloadAsync();
-    const uri = grabando.getURI();
-    setAudioUri(uri);
+    try {
+      await recorder.stop();
+      setGrabando(false);
+      setAudioUri(recorder.uri ?? null);
+      await setAudioModeAsync({ allowsRecording: false, playsInSilentMode: true });
+    } catch (err) {
+      setGrabando(false);
+      console.error('Error al detener la grabación', err);
+    }
   };
 
-  const reproducirAudio = async (uri: string) => {
+  const reproducirAudio = (uri: string) => {
     try {
-      const { sound } = await Audio.Sound.createAsync({ uri });
-      setSonido(sound);
-      await sound.playAsync();
+      player.replace({ uri });
+      player.play();
     } catch (error) { console.error('Error al reproducir', error); }
   };
 
