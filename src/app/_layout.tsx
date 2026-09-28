@@ -1,36 +1,25 @@
+// app/_layout.tsx
 import { useEffect, useState } from 'react';
-import { initDatabase } from '../../database/db';
-import { DarkTheme, DefaultTheme, ThemeProvider } from 'expo-router';
-import * as SplashScreen from 'expo-splash-screen';
-import { useColorScheme } from 'react-native';
+import { initDatabase } from '../../database/db'; // Verifica que esta ruta sea correcta
+import { Slot } from 'expo-router'; // Slot es un marcador de posición para las rutas anidadas
 
-import { AnimatedSplashOverlay } from '@/components/animated-icon';
-import AppTabs from '@/components/app-tabs';
-
-SplashScreen.preventAutoHideAsync();
-
-export default function TabLayout() {
-  const colorScheme = useColorScheme();
-  
-  // 1. Creamos una variable para saber si la BD ya está lista
+export default function RootLayout() {
+  // Estado para saber si la base de datos ya está lista
   const [dbLista, setDbLista] = useState(false);
 
   useEffect(() => {
-    // 2. Inicializamos las tablas
+    // 1. Inicializamos las tablas de SQLite
     initDatabase();
-    // 3. Le decimos a React que ya puede continuar
+    // 2. Le decimos a React que ya puede continuar dibujando la pantalla
     setDbLista(true);
   }, []);
 
-  // 4. Bloqueamos la carga de las pantallas hasta que dbLista sea true
+  // Mientras la base de datos se crea, no mostramos nada (evita errores de pantalla roja)
   if (!dbLista) {
     return null; 
   }
 
-  return (
-    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <AnimatedSplashOverlay />
-      <AppTabs />
-    </ThemeProvider>
-  );
+  // Si la DB está lista, <Slot /> inyecta las rutas hijas 
+  // (en este caso, automáticamente cargará tu carpeta (tabs))
+  return <Slot />;
 }

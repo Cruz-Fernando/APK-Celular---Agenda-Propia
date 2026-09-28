@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, FlatList, StyleSheet } from 'react-native';
-import db from '../../database/db'; 
+import db from '../../../database/db'; 
 
 // 1. Definimos la forma exacta que tiene un "Apunte" en nuestra base de datos
 interface Apunte {

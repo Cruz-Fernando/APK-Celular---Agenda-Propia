@@ -15,7 +15,7 @@ export default function TemporizadorScreen() {
   // --- LÓGICA DEL TEMPORIZADOR (useEffect) ---
   // Este useEffect se ejecuta cada vez que cambia el estado 'activo' o 'segundosRestantes'
   useEffect(() => {
-    let intervalo: NodeJS.Timeout;
+    let intervalo: ReturnType<typeof setInterval>;
 
     // Si está activo y aún hay tiempo, restamos 1 segundo cada 1000 milisegundos (1 seg)
     if (activo && segundosRestantes > 0) {
