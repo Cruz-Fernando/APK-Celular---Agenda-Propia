@@ -2,10 +2,14 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, FlatList, StyleSheet, KeyboardAvoidingView, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import { Picker } from '@react-native-picker/picker'; 
-import * as ImagePicker from 'expo-image-picker'; 
-import * as DocumentPicker from 'expo-document-picker'; 
+import { Picker } from '@react-native-picker/picker';
+import * as ImagePicker from 'expo-image-picker';
+import * as DocumentPicker from 'expo-document-picker';
 import db from '../../../database/db';
+
+import { useTheme } from '@/hooks/use-theme';
+import Reveal from '@/components/Reveal';
+import PressableScale from '@/components/PressableScale';
 
 interface Tarea {
   id: number;
@@ -20,6 +24,9 @@ interface Tarea {
 }
 
 export default function AgendaScreen() {
+  const theme = useTheme();
+  const styles = crearEstilos(theme);
+
   const [tareas, setTareas] = useState<Tarea[]>([]);
   const [titulo, setTitulo] = useState('');
   const [descripcion, setDescripcion] = useState('');
@@ -88,40 +95,40 @@ export default function AgendaScreen() {
         showsVerticalScrollIndicator={false}
         // SOLUCIÓN AL BUG DEL TECLADO: Formulario inyectado directamente en el JSX
         ListHeaderComponent={
-          <View style={styles.formContainer}>
+          <Reveal style={styles.formContainer}>
             <Text style={styles.header}>Mi Agenda</Text>
-            
-            <TextInput style={styles.input} placeholder="¿Qué necesitas hacer? *" placeholderTextColor="#B2BEC3" value={titulo} onChangeText={setTitulo} />
-            <TextInput style={[styles.input, styles.textArea]} placeholder="Añade detalles..." placeholderTextColor="#B2BEC3" value={descripcion} onChangeText={setDescripcion} multiline />
-            
+
+            <TextInput style={styles.input} placeholder="¿Qué necesitas hacer? *" placeholderTextColor={theme.textSecondary} value={titulo} onChangeText={setTitulo} />
+            <TextInput style={[styles.input, styles.textArea]} placeholder="Añade detalles..." placeholderTextColor={theme.textSecondary} value={descripcion} onChangeText={setDescripcion} multiline />
+
             <View style={styles.pickerContainer}>
               <Text style={styles.labelPicker}>Asignatura</Text>
-              <Picker selectedValue={asignatura} onValueChange={setAsignatura} style={styles.picker}>
-                {opcionesAsignaturas.map((opc, i) => <Picker.Item key={i} label={opc} value={opc} color="#2D3436" />)}
+              <Picker selectedValue={asignatura} onValueChange={setAsignatura} style={styles.picker} dropdownIconColor={theme.text}>
+                {opcionesAsignaturas.map((opc, i) => <Picker.Item key={i} label={opc} value={opc} color={theme.text} />)}
               </Picker>
             </View>
 
-            <TextInput style={styles.input} placeholder="Etiqueta (Ej: Proyecto)" placeholderTextColor="#B2BEC3" value={etiquetaPersonal} onChangeText={setEtiquetaPersonal} />
+            <TextInput style={styles.input} placeholder="Etiqueta (Ej: Proyecto)" placeholderTextColor={theme.textSecondary} value={etiquetaPersonal} onChangeText={setEtiquetaPersonal} />
 
             <View style={styles.accionesRow}>
-              <TouchableOpacity style={styles.botonFecha} onPress={() => setMostrarCalendario(true)}>
+              <PressableScale style={styles.botonFecha} onPress={() => setMostrarCalendario(true)}>
                 <Ionicons name="calendar" size={18} color="#0984E3" />
                 <Text style={styles.textoBotonFecha}>{formatearFecha(fechaLimite)}</Text>
-              </TouchableOpacity>
+              </PressableScale>
 
               <View style={styles.adjuntosRow}>
-                <TouchableOpacity style={styles.botonIcono} onPress={adjuntarImagen}>
-                  <Ionicons name="image" size={22} color="#636E72" />
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.botonIcono} onPress={adjuntarDocumento}>
-                  <Ionicons name="document-attach" size={22} color="#636E72" />
-                </TouchableOpacity>
+                <PressableScale style={styles.botonIcono} onPress={adjuntarImagen}>
+                  <Ionicons name="image" size={22} color={theme.textSecondary} />
+                </PressableScale>
+                <PressableScale style={styles.botonIcono} onPress={adjuntarDocumento}>
+                  <Ionicons name="document-attach" size={22} color={theme.textSecondary} />
+                </PressableScale>
               </View>
             </View>
 
             {archivoAdjunto && (
               <View style={styles.archivoBadge}>
-                <Ionicons name="attach" size={16} color="#2D3436" />
+                <Ionicons name="attach" size={16} color={theme.text} />
                 <Text style={styles.archivoNombre} numberOfLines={1}>{archivoAdjunto.nombre}</Text>
                 <TouchableOpacity onPress={removerAdjunto}><Ionicons name="close-circle" size={20} color="#FF7675" /></TouchableOpacity>
               </View>
@@ -129,86 +136,88 @@ export default function AgendaScreen() {
 
             {mostrarCalendario && <DateTimePicker value={fechaLimite} mode="date" display="default" onChange={alCambiarFecha} />}
 
-            <TouchableOpacity style={styles.botonGuardar} onPress={agregarTarea}>
+            <PressableScale style={styles.botonGuardar} onPress={agregarTarea}>
               <Text style={styles.textoBotonGuardar}>Añadir Tarea</Text>
-            </TouchableOpacity>
-          </View>
+            </PressableScale>
+          </Reveal>
         }
-        renderItem={({ item }) => (
-          <View style={[styles.tarjetaTarea, item.estado === 'completada' && styles.tareaCompletada]}>
-            <TouchableOpacity onPress={() => cambiarEstado(item.id, item.estado)} style={styles.checkbox}>
-              <Ionicons name={item.estado === 'completada' ? 'checkmark-circle' : 'ellipse-outline'} size={28} color={item.estado === 'completada' ? '#00B894' : '#DFE6E9'} />
-            </TouchableOpacity>
+        renderItem={({ item, index }) => (
+          <Reveal delay={Math.min(index, 6) * 50}>
+            <View style={[styles.tarjetaTarea, item.estado === 'completada' && styles.tareaCompletada]}>
+              <TouchableOpacity onPress={() => cambiarEstado(item.id, item.estado)} style={styles.checkbox}>
+                <Ionicons name={item.estado === 'completada' ? 'checkmark-circle' : 'ellipse-outline'} size={28} color={item.estado === 'completada' ? '#00B894' : theme.backgroundSelected} />
+              </TouchableOpacity>
 
-            <View style={styles.infoTarea}>
-              <Text style={[styles.tituloTarea, item.estado === 'completada' && styles.textoTachado]}>{item.titulo_tarea}</Text>
-              {item.descripcion ? <Text style={styles.descripcionTarea} numberOfLines={2}>{item.descripcion}</Text> : null}
-              
-              <View style={styles.etiquetasContainer}>
-                {item.fecha_limite && <View style={styles.pillFecha}><Text style={styles.textoPillFecha}>{item.fecha_limite}</Text></View>}
-                {item.asignatura && item.asignatura !== "Ninguna" && <View style={styles.pillAsignatura}><Text style={styles.textoPillAsignatura}>{item.asignatura}</Text></View>}
-                {item.etiqueta_personal ? <View style={styles.pillPersonal}><Text style={styles.textoPillPersonal}>{item.etiqueta_personal}</Text></View> : null}
+              <View style={styles.infoTarea}>
+                <Text style={[styles.tituloTarea, item.estado === 'completada' && styles.textoTachado]}>{item.titulo_tarea}</Text>
+                {item.descripcion ? <Text style={styles.descripcionTarea} numberOfLines={2}>{item.descripcion}</Text> : null}
+
+                <View style={styles.etiquetasContainer}>
+                  {item.fecha_limite && <View style={styles.pillFecha}><Text style={styles.textoPillFecha}>{item.fecha_limite}</Text></View>}
+                  {item.asignatura && item.asignatura !== "Ninguna" && <View style={styles.pillAsignatura}><Text style={styles.textoPillAsignatura}>{item.asignatura}</Text></View>}
+                  {item.etiqueta_personal ? <View style={styles.pillPersonal}><Text style={styles.textoPillPersonal}>{item.etiqueta_personal}</Text></View> : null}
+                </View>
+
+                {item.archivo_uri && (
+                  <View style={styles.indicadorArchivo}>
+                    <Ionicons name="document-text" size={14} color="#0984E3" />
+                    <Text style={styles.textoIndicadorArchivo}>{item.archivo_nombre}</Text>
+                  </View>
+                )}
               </View>
 
-              {item.archivo_uri && (
-                <View style={styles.indicadorArchivo}>
-                  <Ionicons name="document-text" size={14} color="#0984E3" />
-                  <Text style={styles.textoIndicadorArchivo}>{item.archivo_nombre}</Text>
-                </View>
-              )}
+              <TouchableOpacity onPress={() => eliminarTarea(item.id)} style={styles.btnEliminar}>
+                <Ionicons name="trash-outline" size={22} color="#FF7675" />
+              </TouchableOpacity>
             </View>
-
-            <TouchableOpacity onPress={() => eliminarTarea(item.id)} style={styles.btnEliminar}>
-              <Ionicons name="trash-outline" size={22} color="#FF7675" />
-            </TouchableOpacity>
-          </View>
+          </Reveal>
         )}
       />
     </KeyboardAvoidingView>
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F4F7FC', paddingHorizontal: 20 },
-  formContainer: { marginTop: 40, marginBottom: 20, backgroundColor: '#FFFFFF', padding: 20, borderRadius: 24, elevation: 4, shadowColor: '#000', shadowOpacity: 0.08, shadowRadius: 15, shadowOffset: { width: 0, height: 5 } },
-  header: { fontSize: 28, fontWeight: '900', color: '#2D3436', marginBottom: 20 },
-  
-  input: { backgroundColor: '#F8F9FA', padding: 16, borderRadius: 12, marginBottom: 12, fontSize: 15, color: '#2D3436' },
+const crearEstilos = (theme: ReturnType<typeof useTheme>) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: theme.background, paddingHorizontal: 20 },
+  formContainer: { marginTop: 40, marginBottom: 20, backgroundColor: theme.backgroundElement, padding: 20, borderRadius: 24, elevation: 4, shadowColor: '#000', shadowOpacity: 0.08, shadowRadius: 15, shadowOffset: { width: 0, height: 5 } },
+  header: { fontSize: 28, fontWeight: '900', color: theme.text, marginBottom: 20 },
+
+  input: { backgroundColor: theme.background, padding: 16, borderRadius: 12, marginBottom: 12, fontSize: 15, color: theme.text },
   textArea: { height: 80, textAlignVertical: 'top' },
-  
-  pickerContainer: { backgroundColor: '#F8F9FA', borderRadius: 12, marginBottom: 12, paddingHorizontal: 12, paddingTop: 8 },
-  labelPicker: { fontSize: 11, color: '#B2BEC3', fontWeight: 'bold', textTransform: 'uppercase' },
-  picker: { height: 45, width: '100%', color: '#2D3436' },
+
+  pickerContainer: { backgroundColor: theme.background, borderRadius: 12, marginBottom: 12, paddingHorizontal: 12, paddingTop: 8 },
+  labelPicker: { fontSize: 11, color: theme.textSecondary, fontWeight: 'bold', textTransform: 'uppercase' },
+  picker: { height: 45, width: '100%', color: theme.text },
 
   accionesRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15 },
-  botonFecha: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#E1F0FF', paddingVertical: 12, paddingHorizontal: 16, borderRadius: 12, flex: 1, marginRight: 10 },
+  botonFecha: { flexDirection: 'row', alignItems: 'center', backgroundColor: theme.backgroundSelected, paddingVertical: 12, paddingHorizontal: 16, borderRadius: 12, flex: 1, marginRight: 10 },
   textoBotonFecha: { color: '#0984E3', fontWeight: 'bold', marginLeft: 8, fontSize: 14 },
   adjuntosRow: { flexDirection: 'row', gap: 10 },
-  botonIcono: { backgroundColor: '#F8F9FA', padding: 12, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
-  
-  archivoBadge: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#F1F2F6', padding: 12, borderRadius: 10, marginBottom: 15 },
-  archivoNombre: { flex: 1, fontSize: 13, color: '#2D3436', marginHorizontal: 8, fontWeight: '500' },
-  
-  botonGuardar: { backgroundColor: '#2D3436', padding: 16, borderRadius: 12, alignItems: 'center', elevation: 2 },
-  textoBotonGuardar: { color: '#FFF', fontWeight: 'bold', fontSize: 16 },
-  
-  tarjetaTarea: { flexDirection: 'row', alignItems: 'flex-start', backgroundColor: '#FFFFFF', padding: 16, borderRadius: 20, marginBottom: 12, elevation: 2, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 8, shadowOffset: { width: 0, height: 3 } },
+  botonIcono: { backgroundColor: theme.background, padding: 12, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+
+  archivoBadge: { flexDirection: 'row', alignItems: 'center', backgroundColor: theme.backgroundSelected, padding: 12, borderRadius: 10, marginBottom: 15 },
+  archivoNombre: { flex: 1, fontSize: 13, color: theme.text, marginHorizontal: 8, fontWeight: '500' },
+
+  botonGuardar: { backgroundColor: theme.text, padding: 16, borderRadius: 12, alignItems: 'center', elevation: 2 },
+  textoBotonGuardar: { color: theme.background, fontWeight: 'bold', fontSize: 16 },
+
+  tarjetaTarea: { flexDirection: 'row', alignItems: 'flex-start', backgroundColor: theme.backgroundElement, padding: 16, borderRadius: 20, marginBottom: 12, elevation: 2, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 8, shadowOffset: { width: 0, height: 3 } },
   tareaCompletada: { opacity: 0.6 },
   checkbox: { marginRight: 12, marginTop: 2 },
   infoTarea: { flex: 1 },
-  tituloTarea: { fontSize: 17, fontWeight: 'bold', color: '#2D3436', marginBottom: 4 },
-  descripcionTarea: { fontSize: 14, color: '#636E72', marginBottom: 10 },
-  textoTachado: { textDecorationLine: 'line-through', color: '#B2BEC3' },
-  
+  tituloTarea: { fontSize: 17, fontWeight: 'bold', color: theme.text, marginBottom: 4 },
+  descripcionTarea: { fontSize: 14, color: theme.textSecondary, marginBottom: 10 },
+  textoTachado: { textDecorationLine: 'line-through', color: theme.textSecondary },
+
   etiquetasContainer: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 4 },
   pillFecha: { backgroundColor: '#FFEAA7', paddingVertical: 4, paddingHorizontal: 10, borderRadius: 20 },
   textoPillFecha: { fontSize: 11, fontWeight: 'bold', color: '#D35400' },
-  pillAsignatura: { backgroundColor: '#E1F0FF', paddingVertical: 4, paddingHorizontal: 10, borderRadius: 20 },
+  pillAsignatura: { backgroundColor: theme.backgroundSelected, paddingVertical: 4, paddingHorizontal: 10, borderRadius: 20 },
   textoPillAsignatura: { fontSize: 11, fontWeight: 'bold', color: '#0984E3' },
-  pillPersonal: { backgroundColor: '#DFE6E9', paddingVertical: 4, paddingHorizontal: 10, borderRadius: 20 },
-  textoPillPersonal: { fontSize: 11, fontWeight: 'bold', color: '#2D3436' },
-  
-  indicadorArchivo: { flexDirection: 'row', alignItems: 'center', marginTop: 12, backgroundColor: '#F8F9FA', paddingVertical: 6, paddingHorizontal: 10, borderRadius: 8, alignSelf: 'flex-start' },
+  pillPersonal: { backgroundColor: theme.backgroundSelected, paddingVertical: 4, paddingHorizontal: 10, borderRadius: 20 },
+  textoPillPersonal: { fontSize: 11, fontWeight: 'bold', color: theme.text },
+
+  indicadorArchivo: { flexDirection: 'row', alignItems: 'center', marginTop: 12, backgroundColor: theme.background, paddingVertical: 6, paddingHorizontal: 10, borderRadius: 8, alignSelf: 'flex-start' },
   textoIndicadorArchivo: { fontSize: 12, color: '#0984E3', marginLeft: 6, fontWeight: '600' },
-  btnEliminar: { padding: 4, marginLeft: 8 }
+  btnEliminar: { padding: 4, marginLeft: 8 },
 });

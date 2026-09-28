@@ -1,8 +1,11 @@
 import React, { useState } from 'react';
 import { View, Text, ScrollView, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useFocusEffect } from 'expo-router'; 
+import { useFocusEffect } from 'expo-router';
 import db from '../../../database/db';
+
+import { useTheme } from '@/hooks/use-theme';
+import Reveal from '@/components/Reveal';
 
 interface DatosMateria {
   apuntes: any[];
@@ -10,8 +13,11 @@ interface DatosMateria {
 }
 
 export default function CuadernoScreen() {
+  const theme = useTheme();
+  const styles = crearEstilos(theme);
+
   const [datosPorMateria, setDatosPorMateria] = useState<Record<string, DatosMateria>>({});
-  
+
   // Lista exacta sin "Ninguna", para generar solo las tarjetas de las materias reales
   const materiasActivas = ["API", "INGENERIA DE SOFTWARE", "SISTEMAS OPERATIVOS", "SOLUCIONES TECNOLOGICAS CONT", "ECONOMIA", "ETICA", "INFORMATICA JURIDICA"];
 
@@ -23,7 +29,7 @@ export default function CuadernoScreen() {
       const tareas = db.getAllSync('SELECT * FROM agenda WHERE asignatura != "Ninguna" AND asignatura IS NOT NULL') as any[];
 
       const datosAgrupados: Record<string, DatosMateria> = {};
-      
+
       materiasActivas.forEach(materia => {
         datosAgrupados[materia] = {
           apuntes: apuntes.filter(a => a.asignatura === materia),
@@ -44,15 +50,15 @@ export default function CuadernoScreen() {
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
       <Text style={styles.header}>Mi Cuaderno</Text>
-      
+
       {materiasActivas.map((materia, index) => {
         const datos = datosPorMateria[materia];
         // Oculta la materia si no hay ni apuntes ni tareas registradas en ella
         if (!datos || (datos.apuntes.length === 0 && datos.tareas.length === 0)) return null;
 
         return (
-          <View key={index} style={styles.materiaCard}>
-            
+          <Reveal key={index} delay={Math.min(index, 6) * 60} style={styles.materiaCard}>
+
             {/* Título de la Materia */}
             <View style={styles.materiaHeader}>
               <Ionicons name="library" size={24} color="#6C5CE7" />
@@ -65,11 +71,11 @@ export default function CuadernoScreen() {
                 <Text style={styles.seccionTitulo}>📌 Estado de Tareas</Text>
                 {datos.tareas.map(tarea => (
                   <View key={`tarea-${tarea.id}`} style={[styles.itemRow, tarea.estado === 'completada' && styles.itemCompletado]}>
-                    <Ionicons 
-                      name={tarea.estado === 'completada' ? "checkmark-circle" : "ellipse-outline"} 
-                      size={20} 
-                      color={tarea.estado === 'completada' ? "#00B894" : "#FF7675"} 
-                      style={{ marginTop: 2 }} 
+                    <Ionicons
+                      name={tarea.estado === 'completada' ? "checkmark-circle" : "ellipse-outline"}
+                      size={20}
+                      color={tarea.estado === 'completada' ? "#00B894" : "#FF7675"}
+                      style={{ marginTop: 2 }}
                     />
                     <View style={styles.itemTextContainer}>
                       <Text style={[styles.itemTitulo, tarea.estado === 'completada' && styles.textoTachado]}>
@@ -97,31 +103,31 @@ export default function CuadernoScreen() {
                 ))}
               </View>
             )}
-          </View>
+          </Reveal>
         );
       })}
-      
+
       {/* Espacio extra al final para que el scroll no quede cortado por el menú inferior */}
       <View style={{ height: 40 }} />
     </ScrollView>
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F4F7FC', paddingHorizontal: 20 },
-  header: { fontSize: 32, fontWeight: '900', color: '#2D3436', marginTop: 40, marginBottom: 20 },
-  
-  materiaCard: { backgroundColor: '#FFFFFF', padding: 20, borderRadius: 24, marginBottom: 20, elevation: 4, shadowColor: '#000', shadowOpacity: 0.08, shadowRadius: 15, shadowOffset: { width: 0, height: 5 } },
-  materiaHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 15, borderBottomWidth: 1, borderBottomColor: '#F1F2F6', paddingBottom: 15 },
-  materiaTitulo: { fontSize: 18, fontWeight: 'bold', color: '#2D3436', marginLeft: 10, flex: 1 },
-  
+const crearEstilos = (theme: ReturnType<typeof useTheme>) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: theme.background, paddingHorizontal: 20 },
+  header: { fontSize: 32, fontWeight: '900', color: theme.text, marginTop: 40, marginBottom: 20 },
+
+  materiaCard: { backgroundColor: theme.backgroundElement, padding: 20, borderRadius: 24, marginBottom: 20, elevation: 4, shadowColor: '#000', shadowOpacity: 0.08, shadowRadius: 15, shadowOffset: { width: 0, height: 5 } },
+  materiaHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 15, borderBottomWidth: 1, borderBottomColor: theme.backgroundSelected, paddingBottom: 15 },
+  materiaTitulo: { fontSize: 18, fontWeight: 'bold', color: theme.text, marginLeft: 10, flex: 1 },
+
   seccion: { marginTop: 10, marginBottom: 5 },
-  seccionTitulo: { fontSize: 13, fontWeight: 'bold', color: '#B2BEC3', marginBottom: 12, textTransform: 'uppercase', letterSpacing: 1 },
-  
-  itemRow: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 10, backgroundColor: '#F8F9FA', padding: 12, borderRadius: 12, borderWidth: 1, borderColor: '#F1F2F6' },
-  itemCompletado: { backgroundColor: '#FFFFFF', opacity: 0.7, borderColor: '#E8F8F5' },
+  seccionTitulo: { fontSize: 13, fontWeight: 'bold', color: theme.textSecondary, marginBottom: 12, textTransform: 'uppercase', letterSpacing: 1 },
+
+  itemRow: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 10, backgroundColor: theme.background, padding: 12, borderRadius: 12, borderWidth: 1, borderColor: theme.backgroundSelected },
+  itemCompletado: { backgroundColor: theme.backgroundElement, opacity: 0.7 },
   itemTextContainer: { marginLeft: 12, flex: 1 },
-  itemTitulo: { fontSize: 15, fontWeight: 'bold', color: '#2D3436' },
-  textoTachado: { textDecorationLine: 'line-through', color: '#B2BEC3' },
-  itemSub: { fontSize: 13, color: '#636E72', marginTop: 3 }
+  itemTitulo: { fontSize: 15, fontWeight: 'bold', color: theme.text },
+  textoTachado: { textDecorationLine: 'line-through', color: theme.textSecondary },
+  itemSub: { fontSize: 13, color: theme.textSecondary, marginTop: 3 },
 });
