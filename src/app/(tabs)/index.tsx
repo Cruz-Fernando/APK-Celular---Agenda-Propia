@@ -11,6 +11,7 @@ import {
   requestRecordingPermissionsAsync,
   setAudioModeAsync,
 } from 'expo-audio';
+import { File, Paths } from 'expo-file-system';
 import db from '../../../database/db'; 
 
 interface Apunte {
@@ -89,8 +90,20 @@ export default function ApuntesScreen() {
     try {
       await recorder.stop();
       setGrabando(false);
-      setAudioUri(recorder.uri ?? null);
       await setAudioModeAsync({ allowsRecording: false, playsInSilentMode: true });
+
+      // recorder.uri apunta a la caché, que Android puede borrar en cualquier
+      // momento. Copiamos el audio al directorio de documentos (permanente)
+      // antes de guardar la ruta en la base de datos.
+      const uriTemporal = recorder.uri;
+      if (uriTemporal) {
+        const archivoTemporal = new File(uriTemporal);
+        const archivoPermanente = new File(Paths.document, `audio_${Date.now()}.m4a`);
+        archivoTemporal.copy(archivoPermanente);
+        setAudioUri(archivoPermanente.uri);
+      } else {
+        setAudioUri(null);
+      }
     } catch (err) {
       setGrabando(false);
       console.error('Error al detener la grabación', err);
@@ -135,8 +148,11 @@ export default function ApuntesScreen() {
     } catch (error) { console.error('Error:', error); }
   };
 
-  const eliminarApunte = (id: number) => {
+  const eliminarApunte = (id: number, uriAudio?: string) => {
     db.runSync('DELETE FROM apuntes WHERE id = ?', [id]);
+    if (uriAudio) {
+      try { new File(uriAudio).delete(); } catch (error) { /* el archivo ya no existía */ }
+    }
     cargarApuntes();
     setModalVisible(false);
   };
@@ -241,7 +257,7 @@ export default function ApuntesScreen() {
           <TouchableOpacity style={styles.tarjetaApunte} onPress={() => abrirDetalles(item)} activeOpacity={0.7}>
             <View style={styles.cabeceraTarjeta}>
               <Text style={styles.tituloApunte}>{item.titulo}</Text>
-              <TouchableOpacity onPress={() => eliminarApunte(item.id)}>
+              <TouchableOpacity onPress={() => eliminarApunte(item.id, item.audio_uri)}>
                 <Ionicons name="trash-outline" size={22} color="#FF7675" />
               </TouchableOpacity>
             </View>
