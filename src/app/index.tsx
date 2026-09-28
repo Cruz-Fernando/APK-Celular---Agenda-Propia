@@ -1,98 +1,89 @@
-import * as Device from 'expo-device';
-import { Platform, StyleSheet } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import React, { useState, useEffect } from 'react';
+import { View, Text, TextInput, TouchableOpacity, FlatList, StyleSheet } from 'react-native';
+import db from '../../database/db'; // Ajusta esta ruta según la ubicación de tu archivo
 
-import { AnimatedIcon } from '@/components/animated-icon';
-import { HintRow } from '@/components/hint-row';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { WebBadge } from '@/components/web-badge';
-import { BottomTabInset, MaxContentWidth, Spacing } from '@/constants/theme';
+export default function ApuntesScreen() {
+  const [apuntes, setApuntes] = useState([]);
+  const [titulo, setTitulo] = useState('');
+  const [contenido, setContenido] = useState('');
 
-function getDevMenuHint() {
-  if (Platform.OS === 'web') {
-    return <ThemedText type="small">use browser devtools</ThemedText>;
-  }
-  if (Device.isDevice) {
-    return (
-      <ThemedText type="small">
-        shake device or press <ThemedText type="code">m</ThemedText> in terminal
-      </ThemedText>
-    );
-  }
-  const shortcut = Platform.OS === 'android' ? 'cmd+m (or ctrl+m)' : 'cmd+d';
+  // Función para leer los apuntes de la base de datos
+  const cargarApuntes = () => {
+    try {
+      const resultados = db.getAllSync('SELECT * FROM apuntes ORDER BY id DESC');
+      setApuntes(resultados);
+    } catch (error) {
+      console.error('Error al cargar apuntes:', error);
+    }
+  };
+
+  // Cargar datos al abrir la pantalla
+  useEffect(() => {
+    cargarApuntes();
+  }, []);
+
+  // Función para insertar un nuevo apunte
+  const guardarApunte = () => {
+    if (!titulo.trim()) return; // Evita guardar si no hay título
+
+    try {
+      db.runSync('INSERT INTO apuntes (titulo, contenido) VALUES (?, ?)', [titulo, contenido]);
+      setTitulo('');
+      setContenido('');
+      cargarApuntes(); // Refrescar la lista
+    } catch (error) {
+      console.error('Error al guardar el apunte:', error);
+    }
+  };
+
   return (
-    <ThemedText type="small">
-      press <ThemedText type="code">{shortcut}</ThemedText>
-    </ThemedText>
-  );
-}
+    <View style={styles.container}>
+      <Text style={styles.header}>Mis Apuntes</Text>
+      
+      <View style={styles.inputContainer}>
+        <TextInput
+          style={styles.input}
+          placeholder="Título del apunte..."
+          value={titulo}
+          onChangeText={setTitulo}
+        />
+        <TextInput
+          style={[styles.input, styles.textArea]}
+          placeholder="Escribe el contenido aquí..."
+          value={contenido}
+          onChangeText={setContenido}
+          multiline
+        />
+        <TouchableOpacity style={styles.boton} onPress={guardarApunte}>
+          <Text style={styles.textoBoton}>Guardar Apunte</Text>
+        </TouchableOpacity>
+      </View>
 
-export default function HomeScreen() {
-  return (
-    <ThemedView style={styles.container}>
-      <SafeAreaView style={styles.safeArea}>
-        <ThemedView style={styles.heroSection}>
-          <AnimatedIcon />
-          <ThemedText type="title" style={styles.title}>
-            Mi primera apk en celular
-          </ThemedText>
-        </ThemedView>
-
-        <ThemedText type="code" style={styles.code}>
-        
-        </ThemedText>
-
-        <ThemedView type="backgroundElement" style={styles.stepContainer}>
-          <HintRow
-            title="Aprendiendo :3"
-            hint={<ThemedText type="code">src/app/index.tsx</ThemedText>}
-          />
-          <HintRow title="Dev tools" hint={getDevMenuHint()} />
-          <HintRow
-            title="Fresh start"
-            hint={<ThemedText type="code">npm run reset-project</ThemedText>}
-          />
-        </ThemedView>
-
-        {Platform.OS === 'web' && <WebBadge />}
-      </SafeAreaView>
-    </ThemedView>
+      <FlatList
+        data={apuntes}
+        keyExtractor={(item) => item.id.toString()}
+        renderItem={({ item }) => (
+          <View style={styles.tarjetaApunte}>
+            <Text style={styles.tituloApunte}>{item.titulo}</Text>
+            <Text style={styles.contenidoApunte}>{item.contenido}</Text>
+            <Text style={styles.fechaApunte}>{item.fecha_creacion}</Text>
+          </View>
+        )}
+      />
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    justifyContent: 'center',
-    flexDirection: 'row',
-  },
-  safeArea: {
-    flex: 1,
-    paddingHorizontal: Spacing.four,
-    alignItems: 'center',
-    gap: Spacing.three,
-    paddingBottom: BottomTabInset + Spacing.three,
-    maxWidth: MaxContentWidth,
-  },
-  heroSection: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    flex: 1,
-    paddingHorizontal: Spacing.four,
-    gap: Spacing.four,
-  },
-  title: {
-    textAlign: 'center',
-  },
-  code: {
-    textTransform: 'uppercase',
-  },
-  stepContainer: {
-    gap: Spacing.three,
-    alignSelf: 'stretch',
-    paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.four,
-    borderRadius: Spacing.four,
-  },
+  container: { flex: 1, padding: 20, backgroundColor: '#f5f5f5' },
+  header: { fontSize: 24, fontWeight: 'bold', marginBottom: 20, color: '#333' },
+  inputContainer: { marginBottom: 20 },
+  input: { backgroundColor: '#fff', padding: 12, borderRadius: 8, marginBottom: 10, borderWidth: 1, borderColor: '#ddd' },
+  textArea: { height: 100, textAlignVertical: 'top' },
+  boton: { backgroundColor: '#007BFF', padding: 15, borderRadius: 8, alignItems: 'center' },
+  textoBoton: { color: '#fff', fontWeight: 'bold' },
+  tarjetaApunte: { backgroundColor: '#fff', padding: 15, borderRadius: 8, marginBottom: 10, elevation: 2 },
+  tituloApunte: { fontSize: 18, fontWeight: 'bold', marginBottom: 5 },
+  contenidoApunte: { fontSize: 14, color: '#555', marginBottom: 8 },
+  fechaApunte: { fontSize: 11, color: '#999', textAlign: 'right' }
 });
