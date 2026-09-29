@@ -22,7 +22,13 @@
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false,
-      "package": "com.ferchotips.AppCelularFlow"
+      "package": "com.ferchotips.AppCelularFlow",
+      "permissions": [
+        "android.permission.RECORD_AUDIO",
+        "android.permission.MODIFY_AUDIO_SETTINGS",
+        "android.permission.FOREGROUND_SERVICE",
+        "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK"
+      ]
     },
     "web": {
       "output": "static",
@@ -52,6 +58,12 @@
       "eas": {
         "projectId": "a15cc5ac-c102-440e-9764-0c667e5910d4"
       }
+    },
+    "runtimeVersion": {
+      "policy": "fingerprint"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/a15cc5ac-c102-440e-9764-0c667e5910d4"
     }
   }
 }

@@ -31,8 +31,7 @@ interface Apunte {
   audio_nombre?: string;
 }
 
-// Extensiones de audio que se pueden adjuntar (AAC puro y AAC dentro de contenedor MP4,
-// que es lo que generan la mayoría de grabadoras de celular).
+//Extension
 const EXTENSIONES_AUDIO = ['aac', 'm4a'];
 
 export default function ApuntesScreen() {
