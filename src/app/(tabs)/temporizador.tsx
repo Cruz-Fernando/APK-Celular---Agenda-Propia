@@ -17,7 +17,7 @@ import PressableScale from '@/components/PressableScale';
 // Colores de acento: se mantienen iguales en claro y oscuro porque son
 // la identidad visual de cada modo (Enfoque / Descanso), solo cambian
 // las superficies y el texto según el tema.
-const ACENTO_ENFOQUE = '#FF7675';
+const ACENTO_ENFOQUE = '#3e3535ff';
 const ACENTO_DESCANSO = '#55EFC4';
 
 export default function TemporizadorScreen() {
@@ -169,7 +169,7 @@ export default function TemporizadorScreen() {
           <Text style={styles.label}>min</Text>
         </View>
         <PressableScale style={styles.botonAplicar} onPress={reiniciarTemporizador}>
-          <Ionicons name="checkmark" size={18} color="#FFF" />
+          <Ionicons name="checkmark" size={18} color="#f70000ff" />
         </PressableScale>
       </Reveal>
 
@@ -194,7 +194,7 @@ export default function TemporizadorScreen() {
 
       {/* Botón inferior para saltar modo */}
       <PressableScale style={styles.botonModo} onPress={cambiarModo}>
-        <Ionicons name="play-skip-forward-outline" size={20} color="#FFF" style={{ marginRight: 8 }} />
+        <Ionicons name="play-skip-forward-outline" size={20} color="#ff0000ff" style={{ marginRight: 8 }} />
         <Text style={styles.textoModo}>Saltar a {modoDescanso ? 'Enfoque' : 'Descanso'}</Text>
       </PressableScale>
     </View>
