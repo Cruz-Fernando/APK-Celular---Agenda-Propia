@@ -51,6 +51,8 @@ export const initDatabase = () => {
     try { db.execSync('ALTER TABLE apuntes ADD COLUMN archivo_uri TEXT;'); } catch (e) {}
     try { db.execSync('ALTER TABLE apuntes ADD COLUMN archivo_nombre TEXT;'); } catch (e) {}
     try { db.execSync('ALTER TABLE apuntes ADD COLUMN audio_uri TEXT;'); } catch (e) {}
+    // Nombre original del audio adjunto (.aac/.m4a). Si es NULL, es una nota de voz grabada en la app.
+    try { db.execSync('ALTER TABLE apuntes ADD COLUMN audio_nombre TEXT;'); } catch (e) {}
 
     console.log('✅ Base de datos inicializada y actualizada correctamente.');
   } catch (error) {
