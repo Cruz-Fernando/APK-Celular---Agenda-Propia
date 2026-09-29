@@ -1,14 +1,13 @@
 /**
- * Learn more about light and dark modes:
- * https://docs.expo.dev/guides/color-schemes/
+ * Devuelve la paleta de colores activa (clara u oscura).
+ * El modo se controla desde ThemeProvider (ver theme-context.tsx)
+ * y se cambia con el componente <ThemeToggle />.
  */
 
 import { Colors } from '@/constants/theme';
-import { useColorScheme } from '@/hooks/use-color-scheme';
+import { useThemeMode } from '@/hooks/theme-context';
 
 export function useTheme() {
-  const scheme = useColorScheme();
-  const theme = scheme === 'unspecified' ? 'light' : scheme;
-
-  return Colors[theme];
+  const { esOscuro } = useThemeMode();
+  return Colors[esOscuro ? 'dark' : 'light'];
 }

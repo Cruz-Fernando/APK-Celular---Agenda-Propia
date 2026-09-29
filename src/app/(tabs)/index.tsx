@@ -13,6 +13,10 @@ import {
 } from 'expo-audio';
 import { File, Paths } from 'expo-file-system';
 import db from '../../../database/db'; 
+import { useTheme } from '@/hooks/use-theme';
+import PressableScale from '@/components/PressableScale';
+import Reveal from '@/components/Reveal';
+import ThemeToggle from '@/components/ThemeToggle';
 
 interface Apunte {
   id: number;
@@ -235,7 +239,10 @@ export default function ApuntesScreen() {
         showsVerticalScrollIndicator={false}
         ListHeaderComponent={
           <Reveal style={styles.formContainer}>
-            <Text style={styles.header}>Mis Apuntes</Text>
+            <View style={styles.headerFila}>
+              <Text style={[styles.header, { marginBottom: 0 }]}>Mis Apuntes</Text>
+              <ThemeToggle />
+            </View>
 
             <TextInput style={styles.input} placeholder="Título del apunte..." placeholderTextColor={theme.textSecondary} value={titulo} onChangeText={setTitulo} />
 
@@ -256,24 +263,17 @@ export default function ApuntesScreen() {
             </PressableScale>
           </Reveal>
         }
-        renderItem={({ item }) => (
-          <TouchableOpacity style={styles.tarjetaApunte} onPress={() => abrirDetalles(item)} activeOpacity={0.7}>
-            <View style={styles.cabeceraTarjeta}>
-              <Text style={styles.tituloApunte}>{item.titulo}</Text>
-              <TouchableOpacity onPress={() => eliminarApunte(item.id, item.audio_uri)}>
-                <Ionicons name="trash-outline" size={22} color="#FF7675" />
-              </TouchableOpacity>
-            </View>
-            <Text style={styles.contenidoApunte} numberOfLines={2}>{item.contenido}</Text>
-            
-            <View style={styles.pieTarjeta}>
-              <View style={{flexDirection: 'row', gap: 5}}>
-                {item.asignatura && item.asignatura !== "Ninguna" && (
-                  <View style={styles.pillAsignatura}><Text style={styles.textoPill}>{item.asignatura}</Text></View>
-                )}
-                {item.audio_uri && <Ionicons name="mic" size={16} color="#0984E3" style={{marginTop: 3}} />}
-                {item.archivo_uri && <Ionicons name="document-text" size={16} color="#0984E3" style={{marginTop: 3}} />}
+        renderItem={({ item, index }) => (
+          // Aparición escalonada: cada tarjeta entra 60ms después de la anterior (máx. 8)
+          <Reveal delay={Math.min(index, 8) * 60}>
+            <PressableScale style={styles.tarjetaApunte} onPress={() => abrirDetalles(item)} scaleTo={0.97}>
+              <View style={styles.cabeceraTarjeta}>
+                <Text style={styles.tituloApunte}>{item.titulo}</Text>
+                <TouchableOpacity onPress={() => eliminarApunte(item.id, item.audio_uri)}>
+                  <Ionicons name="trash-outline" size={22} color="#FF7675" />
+                </TouchableOpacity>
               </View>
+
               <Text style={styles.contenidoApunte} numberOfLines={2}>{item.contenido}</Text>
 
               <View style={styles.pieTarjeta}>
@@ -365,6 +365,7 @@ export default function ApuntesScreen() {
 const crearEstilos = (theme: ReturnType<typeof useTheme>) => StyleSheet.create({
   container: { flex: 1, backgroundColor: theme.background, paddingHorizontal: 20 },
   formContainer: { marginTop: 40, marginBottom: 20, backgroundColor: theme.backgroundElement, padding: 20, borderRadius: 24, elevation: 4, shadowColor: '#000', shadowOpacity: 0.08, shadowRadius: 15 },
+  headerFila: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
   header: { fontSize: 28, fontWeight: '900', color: theme.text, marginBottom: 20 },
 
   input: { backgroundColor: theme.background, padding: 16, borderRadius: 12, marginBottom: 12, fontSize: 15, color: theme.text },
