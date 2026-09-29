@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, TouchableOpacity, FlatList, StyleSheet, KeyboardAvoidingView, Platform, Modal, ScrollView } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, FlatList, StyleSheet, KeyboardAvoidingView, Platform, Modal, ScrollView, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Picker } from '@react-native-picker/picker';
 import * as DocumentPicker from 'expo-document-picker';
@@ -7,11 +7,12 @@ import * as Clipboard from 'expo-clipboard';
 import {
   useAudioRecorder,
   useAudioPlayer,
+  useAudioPlayerStatus,
   RecordingPresets,
   requestRecordingPermissionsAsync,
   setAudioModeAsync,
 } from 'expo-audio';
-import { File, Paths } from 'expo-file-system';
+import { Directory, File, Paths } from 'expo-file-system';
 import db from '../../../database/db'; 
 import { useTheme } from '@/hooks/use-theme';
 import PressableScale from '@/components/PressableScale';
@@ -27,7 +28,12 @@ interface Apunte {
   archivo_uri?: string;
   archivo_nombre?: string;
   audio_uri?: string;
+  audio_nombre?: string;
 }
+
+// Extensiones de audio que se pueden adjuntar (AAC puro y AAC dentro de contenedor MP4,
+// que es lo que generan la mayoría de grabadoras de celular).
+const EXTENSIONES_AUDIO = ['aac', 'm4a'];
 
 export default function ApuntesScreen() {
   const theme = useTheme();
@@ -42,11 +48,14 @@ export default function ApuntesScreen() {
   const [asignatura, setAsignatura] = useState('Ninguna');
   const [archivoAdjunto, setArchivoAdjunto] = useState<{ uri: string; nombre: string } | null>(null);
   const [audioUri, setAudioUri] = useState<string | null>(null);
+  const [audioNombre, setAudioNombre] = useState<string | null>(null);
 
   // Estados para Audio (expo-audio)
   const [grabando, setGrabando] = useState(false);
   const recorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
   const player = useAudioPlayer(null);
+  const estadoPlayer = useAudioPlayerStatus(player);
+  const [uriCargada, setUriCargada] = useState<string | null>(null); // audio que tiene cargado el reproductor
 
   // Estados del Modal (Ver Detalles / Editar)
   const [modalVisible, setModalVisible] = useState(false);
@@ -78,6 +87,33 @@ export default function ApuntesScreen() {
     }
   };
 
+  // Adjunta un audio .aac/.m4a. Lo copia al directorio de documentos (permanente)
+  // porque el selector lo deja en caché, que Android puede borrar cuando quiera.
+  const adjuntarAAC = async () => {
+    try {
+      const result = await DocumentPicker.getDocumentAsync({ type: 'audio/*', copyToCacheDirectory: true });
+      if (result.canceled || !result.assets || result.assets.length === 0) return;
+
+      const asset = result.assets[0];
+      const extension = asset.name.split('.').pop()?.toLowerCase() ?? '';
+      if (!EXTENSIONES_AUDIO.includes(extension)) {
+        Alert.alert('Formato no compatible', 'Selecciona un archivo de audio .aac o .m4a');
+        return;
+      }
+
+      const origen = new File(asset.uri);
+      const destino = new File(Paths.document, `audio_${Date.now()}.${extension}`);
+      await origen.copy(destino);
+
+      pararAudio();
+      setAudioUri(destino.uri);
+      setAudioNombre(asset.name);
+    } catch (err) {
+      console.error('Error al adjuntar audio', err);
+      Alert.alert('No se pudo adjuntar el audio', String(err));
+    }
+  };
+
   const iniciarGrabacion = async () => {
     try {
       const { granted } = await requestRecordingPermissionsAsync();
@@ -106,10 +142,13 @@ export default function ApuntesScreen() {
       if (uriTemporal) {
         const archivoTemporal = new File(uriTemporal);
         const archivoPermanente = new File(Paths.document, `audio_${Date.now()}.m4a`);
-        archivoTemporal.copy(archivoPermanente);
+        await archivoTemporal.copy(archivoPermanente);
+        pararAudio();
         setAudioUri(archivoPermanente.uri);
+        setAudioNombre(null); // null = nota de voz grabada en la app
       } else {
         setAudioUri(null);
+        setAudioNombre(null);
       }
     } catch (err) {
       setGrabando(false);
@@ -117,27 +156,80 @@ export default function ApuntesScreen() {
     }
   };
 
-  const reproducirAudio = (uri: string) => {
+  // --- REPRODUCCIÓN Y DESCARGA DE AUDIO ---
+
+  const estaSonando = (uri?: string | null) => !!uri && uriCargada === uri && estadoPlayer.playing;
+
+  const progresoDe = (uri?: string | null) =>
+    uri && uriCargada === uri && estadoPlayer.duration > 0
+      ? Math.min(estadoPlayer.currentTime / estadoPlayer.duration, 1)
+      : 0;
+
+  const pararAudio = () => {
+    try { player.pause(); } catch (error) { /* el reproductor aún no tenía audio */ }
+  };
+
+  // Play / pausa sobre el mismo botón
+  const alternarReproduccion = async (uri: string) => {
     try {
-      player.replace({ uri });
+      if (uriCargada === uri && estadoPlayer.playing) {
+        player.pause();
+        return;
+      }
+      if (uriCargada !== uri) {
+        player.replace({ uri });
+        setUriCargada(uri);
+      } else if (estadoPlayer.duration > 0 && estadoPlayer.currentTime >= estadoPlayer.duration - 0.1) {
+        // Ya terminó: volvemos al inicio para poder repetirlo
+        await player.seekTo(0);
+      }
       player.play();
-    } catch (error) { console.error('Error al reproducir', error); }
+    } catch (error) {
+      console.error('Error al reproducir', error);
+      Alert.alert('No se pudo reproducir el audio', 'Es posible que el archivo ya no exista.');
+    }
+  };
+
+  // "Descargar": copia el audio a una carpeta que elige el usuario (Descargas, Documentos, etc.)
+  const descargarAudio = async (uri: string, nombreOriginal?: string | null) => {
+    try {
+      const origen = new File(uri);
+      if (!origen.exists) {
+        Alert.alert('Archivo no encontrado', 'El audio ya no existe en el dispositivo.');
+        return;
+      }
+
+      const carpeta = await Directory.pickDirectoryAsync();
+      const nombre = nombreOriginal || origen.name;
+      const mime = nombre.toLowerCase().endsWith('.aac') ? 'audio/aac' : 'audio/mp4';
+
+      const copia = carpeta.createFile(nombre, mime);
+      await copia.write(await origen.bytes());
+
+      Alert.alert('Audio descargado', `Se guardó como "${nombre}"`);
+    } catch (err) {
+      // Si el usuario cierra el selector de carpetas, no es un error real
+      if (/cancel/i.test(String(err))) return;
+      console.error('Error al descargar', err);
+      Alert.alert('No se pudo descargar el audio', String(err));
+    }
   };
 
   // --- FUNCIONES DE BASE DE DATOS ---
 
   const resetearFormulario = () => {
     setTitulo(''); setContenido(''); setAsignatura('Ninguna');
-    setArchivoAdjunto(null); setAudioUri(null);
+    setArchivoAdjunto(null); setAudioUri(null); setAudioNombre(null);
   };
 
   const guardarApunte = () => {
     if (!titulo.trim()) return;
     try {
       db.runSync(
-        'INSERT INTO apuntes (titulo, contenido, asignatura, archivo_uri, archivo_nombre, audio_uri) VALUES (?, ?, ?, ?, ?, ?)',
-        [titulo, contenido, asignatura, archivoAdjunto?.uri || null, archivoAdjunto?.nombre || null, audioUri]
+        'INSERT INTO apuntes (titulo, contenido, asignatura, archivo_uri, archivo_nombre, audio_uri, audio_nombre) VALUES (?, ?, ?, ?, ?, ?, ?)',
+        [titulo, contenido, asignatura, archivoAdjunto?.uri || null, archivoAdjunto?.nombre || null, audioUri, audioNombre]
       );
+      pararAudio();
       resetearFormulario();
       cargarApuntes();
     } catch (error) { console.error('Error:', error); }
@@ -147,15 +239,23 @@ export default function ApuntesScreen() {
     if (!titulo.trim() || !apunteActivo) return;
     try {
       db.runSync(
-        'UPDATE apuntes SET titulo = ?, contenido = ?, asignatura = ?, archivo_uri = ?, archivo_nombre = ?, audio_uri = ? WHERE id = ?',
-        [titulo, contenido, asignatura, archivoAdjunto?.uri || null, archivoAdjunto?.nombre || null, audioUri, apunteActivo.id]
+        'UPDATE apuntes SET titulo = ?, contenido = ?, asignatura = ?, archivo_uri = ?, archivo_nombre = ?, audio_uri = ?, audio_nombre = ? WHERE id = ?',
+        [titulo, contenido, asignatura, archivoAdjunto?.uri || null, archivoAdjunto?.nombre || null, audioUri, audioNombre, apunteActivo.id]
       );
+
+      // Si el audio anterior fue reemplazado o quitado, borramos su copia para no dejar basura
+      if (apunteActivo.audio_uri && apunteActivo.audio_uri !== audioUri) {
+        try { new File(apunteActivo.audio_uri).delete(); } catch (error) { /* ya no existía */ }
+      }
+
+      pararAudio();
       cargarApuntes();
       setModalVisible(false); // Cierra el modal al guardar
     } catch (error) { console.error('Error:', error); }
   };
 
   const eliminarApunte = (id: number, uriAudio?: string) => {
+    pararAudio();
     db.runSync('DELETE FROM apuntes WHERE id = ?', [id]);
     if (uriAudio) {
       try { new File(uriAudio).delete(); } catch (error) { /* el archivo ya no existía */ }
@@ -167,6 +267,7 @@ export default function ApuntesScreen() {
   // --- INTERACCIÓN CON EL MODAL ---
 
   const abrirDetalles = (apunte: Apunte) => {
+    pararAudio();
     setApunteActivo(apunte);
     setModoEdicion(false);
     // Precargamos los datos por si decide editar
@@ -175,15 +276,19 @@ export default function ApuntesScreen() {
     setAsignatura(apunte.asignatura || 'Ninguna');
     setArchivoAdjunto(apunte.archivo_uri ? { uri: apunte.archivo_uri, nombre: apunte.archivo_nombre! } : null);
     setAudioUri(apunte.audio_uri || null);
+    setAudioNombre(apunte.audio_nombre || null);
     setModalVisible(true);
   };
 
   const cerrarModal = () => {
+    pararAudio();
     setModalVisible(false);
     resetearFormulario();
   };
 
   // --- COMPONENTES VISUALES ---
+  // Son funciones que se llaman como {ControlesHerramientas()} (no como <Componente />)
+  // para que React no los desmonte en cada actualización del reproductor.
 
   const ControlesHerramientas = () => (
     <View style={styles.herramientasContainer}>
@@ -195,6 +300,11 @@ export default function ApuntesScreen() {
       <PressableScale style={styles.btnHerramienta} onPress={adjuntarTXT}>
         <Ionicons name="document-text-outline" size={20} color="#0984E3" />
         <Text style={styles.textoHerramienta}>+ TXT</Text>
+      </PressableScale>
+
+      <PressableScale style={styles.btnHerramienta} onPress={adjuntarAAC}>
+        <Ionicons name="musical-notes-outline" size={20} color="#0984E3" />
+        <Text style={styles.textoHerramienta}>+ AAC</Text>
       </PressableScale>
 
       <PressableScale
@@ -220,10 +330,17 @@ export default function ApuntesScreen() {
       )}
       {audioUri && (
         <View style={styles.badgeArchivo}>
-          <Ionicons name="mic" size={16} color={theme.text} />
-          <Text style={styles.badgeTexto} numberOfLines={1}>Nota de voz grabada</Text>
-          <TouchableOpacity onPress={() => reproducirAudio(audioUri)} style={{ marginRight: 10 }}><Ionicons name="play-circle" size={24} color="#0984E3" /></TouchableOpacity>
-          <TouchableOpacity onPress={() => setAudioUri(null)}><Ionicons name="close-circle" size={20} color="#FF7675" /></TouchableOpacity>
+          <Ionicons name={audioNombre ? 'musical-notes' : 'mic'} size={16} color={theme.text} />
+          <Text style={styles.badgeTexto} numberOfLines={1}>{audioNombre || 'Nota de voz grabada'}</Text>
+          <TouchableOpacity onPress={() => alternarReproduccion(audioUri)} style={{ marginRight: 10 }}>
+            <Ionicons name={estaSonando(audioUri) ? 'pause-circle' : 'play-circle'} size={26} color="#0984E3" />
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => descargarAudio(audioUri, audioNombre)} style={{ marginRight: 10 }}>
+            <Ionicons name="download-outline" size={22} color="#0984E3" />
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => { pararAudio(); setAudioUri(null); setAudioNombre(null); }}>
+            <Ionicons name="close-circle" size={20} color="#FF7675" />
+          </TouchableOpacity>
         </View>
       )}
     </View>
@@ -253,9 +370,9 @@ export default function ApuntesScreen() {
               </Picker>
             </View>
 
-            <ControlesHerramientas />
+            {ControlesHerramientas()}
             <TextInput style={[styles.input, styles.textArea]} placeholder="Escribe o pega el contenido aquí..." placeholderTextColor={theme.textSecondary} value={contenido} onChangeText={setContenido} multiline />
-            <IndicadoresAdjuntos />
+            {IndicadoresAdjuntos()}
 
             <PressableScale style={styles.botonGuardar} onPress={guardarApunte}>
               <Ionicons name="save-outline" size={20} color="#FFF" style={{ marginRight: 8 }} />
@@ -281,7 +398,7 @@ export default function ApuntesScreen() {
                   {item.asignatura && item.asignatura !== "Ninguna" && (
                     <View style={styles.pillAsignatura}><Text style={styles.textoPill}>{item.asignatura}</Text></View>
                   )}
-                  {item.audio_uri && <Ionicons name="mic" size={16} color="#0984E3" style={{ marginTop: 3 }} />}
+                  {item.audio_uri && <Ionicons name={item.audio_nombre ? 'musical-notes' : 'mic'} size={16} color="#0984E3" style={{ marginTop: 3 }} />}
                   {item.archivo_uri && <Ionicons name="document-text" size={16} color="#0984E3" style={{ marginTop: 3 }} />}
                 </View>
                 <Text style={styles.fechaApunte}>{item.fecha_creacion}</Text>
@@ -315,9 +432,9 @@ export default function ApuntesScreen() {
                     {opcionesAsignaturas.map((opc, i) => <Picker.Item key={i} label={opc} value={opc} color={theme.text} />)}
                   </Picker>
                 </View>
-                <ControlesHerramientas />
+                {ControlesHerramientas()}
                 <TextInput style={[styles.input, { height: 250, textAlignVertical: 'top' }]} value={contenido} onChangeText={setContenido} multiline placeholderTextColor={theme.textSecondary} />
-                <IndicadoresAdjuntos />
+                {IndicadoresAdjuntos()}
                 <PressableScale style={styles.botonGuardar} onPress={actualizarApunte}>
                   <Text style={styles.textoBoton}>Actualizar Apunte</Text>
                 </PressableScale>
@@ -335,10 +452,24 @@ export default function ApuntesScreen() {
                 </View>
 
                 {apunteActivo?.audio_uri && (
-                  <PressableScale style={styles.btnReproducir} onPress={() => reproducirAudio(apunteActivo.audio_uri!)}>
-                    <Ionicons name="play" size={20} color="#FFF" />
-                    <Text style={{ color: '#FFF', fontWeight: 'bold', marginLeft: 8 }}>Reproducir Clase Grabada</Text>
-                  </PressableScale>
+                  <View style={styles.tarjetaAudio}>
+                    <PressableScale style={styles.btnPlayGrande} onPress={() => alternarReproduccion(apunteActivo.audio_uri!)}>
+                      <Ionicons name={estaSonando(apunteActivo.audio_uri) ? 'pause' : 'play'} size={22} color="#FFF" />
+                    </PressableScale>
+
+                    <View style={{ flex: 1, marginHorizontal: 14 }}>
+                      <Text style={styles.audioNombre} numberOfLines={1}>
+                        {apunteActivo.audio_nombre || 'Nota de voz grabada'}
+                      </Text>
+                      <View style={styles.barraFondo}>
+                        <View style={[styles.barraProgreso, { width: `${Math.round(progresoDe(apunteActivo.audio_uri) * 100)}%` as `${number}%` }]} />
+                      </View>
+                    </View>
+
+                    <PressableScale style={styles.btnIcono} onPress={() => descargarAudio(apunteActivo.audio_uri!, apunteActivo.audio_nombre)}>
+                      <Ionicons name="download-outline" size={22} color="#0984E3" />
+                    </PressableScale>
+                  </View>
                 )}
 
                 {apunteActivo?.archivo_uri && (
@@ -375,8 +506,9 @@ const crearEstilos = (theme: ReturnType<typeof useTheme>) => StyleSheet.create({
   labelPicker: { fontSize: 11, color: theme.textSecondary, fontWeight: 'bold', textTransform: 'uppercase' },
   picker: { height: 45, width: '100%', color: theme.text },
 
-  herramientasContainer: { flexDirection: 'row', gap: 10, marginBottom: 12 },
-  btnHerramienta: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: theme.backgroundSelected, paddingVertical: 10, borderRadius: 10 },
+  // 4 botones en cuadrícula de 2x2
+  herramientasContainer: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 12 },
+  btnHerramienta: { flexGrow: 1, flexBasis: '45%', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: theme.backgroundSelected, paddingVertical: 10, borderRadius: 10 },
   textoHerramienta: { color: '#0984E3', fontSize: 12, fontWeight: 'bold', marginLeft: 4 },
   btnGrabando: { backgroundColor: '#FF7675' },
 
@@ -403,5 +535,12 @@ const crearEstilos = (theme: ReturnType<typeof useTheme>) => StyleSheet.create({
   lecturaTitulo: { fontSize: 26, fontWeight: '900', color: theme.text, marginBottom: 15, marginTop: 10 },
   lecturaCuerpo: { backgroundColor: theme.backgroundElement, padding: 20, borderRadius: 16, minHeight: 300 },
   lecturaTexto: { fontSize: 16, color: theme.text, lineHeight: 26 },
-  btnReproducir: { flexDirection: 'row', backgroundColor: '#6C5CE7', padding: 14, borderRadius: 12, alignItems: 'center', justifyContent: 'center', marginBottom: 15 },
+
+  // Reproductor de audio (vista de lectura)
+  tarjetaAudio: { flexDirection: 'row', alignItems: 'center', backgroundColor: theme.backgroundElement, padding: 14, borderRadius: 16, marginBottom: 15 },
+  btnPlayGrande: { width: 46, height: 46, borderRadius: 23, backgroundColor: '#6C5CE7', alignItems: 'center', justifyContent: 'center' },
+  audioNombre: { fontSize: 14, fontWeight: 'bold', color: theme.text, marginBottom: 8 },
+  barraFondo: { height: 5, borderRadius: 3, backgroundColor: theme.backgroundSelected, overflow: 'hidden' },
+  barraProgreso: { height: 5, borderRadius: 3, backgroundColor: '#6C5CE7' },
+  btnIcono: { width: 40, height: 40, borderRadius: 20, backgroundColor: theme.backgroundSelected, alignItems: 'center', justifyContent: 'center' },
 });
